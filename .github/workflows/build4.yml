@@ -1,0 +1,47 @@
+name: Final Fix Unzip and Build
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Extract Zip File
+        run: |
+          mkdir -p extracted
+          ZIP_FILE=$(find . -maxdepth 2 -type f \( -name "*.zip" -o -name "262141*" \) | head -n 1)
+          echo "Extracting: $ZIP_FILE"
+          unzip -o "$ZIP_FILE" -d ./extracted
+
+      - name: Build APK
+        run: |
+          # আসল pubspec.yaml যেখানে আছে সেই ফোল্ডারে যাওয়া
+          TARGET_DIR=$(find ./extracted -name "pubspec.yaml" -exec dirname {} \; | head -n 1)
+          echo "Target project directory: $TARGET_DIR"
+          cd "$TARGET_DIR"
+          
+          flutter pub get
+          flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: '**/build/app/outputs/flutter-apk/app-release.apk'
