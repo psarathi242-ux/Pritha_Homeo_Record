@@ -1,0 +1,50 @@
+name: Unzip and Build Flutter APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Auto Unzip Project
+        run: |
+          echo "Finding zip file..."
+          ZIP_FILE=$(find . -name "*.zip" | head -n 1)
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Unzipping $ZIP_FILE..."
+            unzip -o "$ZIP_FILE" -d ./extracted_project
+          else
+            echo "No zip file found, building directly."
+          fi
+
+      - name: Locate pubspec and Build APK
+        run: |
+          PUBSPEC_PATH=$(find . -name "pubspec.yaml" | head -n 1)
+          PROJECT_DIR=$(dirname "$PUBSPEC_PATH")
+          echo "Found pubspec.yaml in: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
+          flutter pub get
+          flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: '**/build/app/outputs/flutter-apk/app-release.apk'
